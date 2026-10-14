@@ -1,0 +1,12 @@
+{
+  "name": "marketday",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "test": "node --test tests/*.test.js",
+    "build": "npm --prefix front-end run build"
+  }
+}
