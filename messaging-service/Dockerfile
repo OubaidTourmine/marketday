@@ -1,8 +1,9 @@
 FROM node:22-alpine
 WORKDIR /app
-COPY package*.json ./
-RUN npm install --omit=dev
-COPY server.js ./
-ENV PORT=3003
+RUN mkdir /data && chown node:node /data
+COPY package.json ./
+COPY shared ./shared
+COPY messaging-service ./messaging-service
+USER node
 EXPOSE 3003
-CMD ["npm","start"]
+CMD ["node", "messaging-service/server.js"]
