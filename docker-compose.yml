@@ -1,114 +1,71 @@
 services:
   frontend:
     build: ./front-end
-    ports:
-      - "${FRONTEND_PORT:-8080}:80"
+    ports: ["127.0.0.1:${FRONTEND_PORT:-8080}:80"]
     depends_on:
-      - api-gateway
+      api-gateway: {condition: service_healthy}
     restart: unless-stopped
-
   api-gateway:
-    build: ./api-gateway
+    build: {context: ., dockerfile: api-gateway/Dockerfile}
     environment:
       PORT: "8080"
+      USER_SERVICE_URL: http://user-service:3001
+      LISTING_SERVICE_URL: http://listing-service:3002
+      MESSAGING_SERVICE_URL: http://messaging-service:3003
     depends_on:
-      user-service:
-        condition: service_healthy
-      listing-service:
-        condition: service_healthy
-      messaging-service:
-        condition: service_healthy
+      user-service: {condition: service_healthy}
+      listing-service: {condition: service_healthy}
+      messaging-service: {condition: service_healthy}
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s
       timeout: 3s
       retries: 20
     restart: unless-stopped
-
   user-service:
-    build: ./user-service
+    build: {context: ., dockerfile: user-service/Dockerfile}
     environment:
       PORT: "3001"
-      DATABASE_URL: "postgres://marketday:marketday@users-db:5432/users"
-      JWT_SECRET: "${JWT_SECRET:-change-this-secret-before-deploying}"
-    depends_on:
-      users-db:
-        condition: service_healthy
+      DATA_FILE: /data/users.sqlite
+      USER_SERVICE_URL: http://user-service:3001
+      LISTING_SERVICE_URL: http://listing-service:3002
+      SEED_DEMO: "${SEED_DEMO:-true}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+    volumes: ["users-data:/data"]
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s
       timeout: 3s
       retries: 20
     restart: unless-stopped
-
-  users-db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: users
-      POSTGRES_USER: marketday
-      POSTGRES_PASSWORD: marketday
-    volumes:
-      - users-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U marketday -d users"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    restart: unless-stopped
-
   listing-service:
-    build: ./listing-service
+    build: {context: ., dockerfile: listing-service/Dockerfile}
     environment:
       PORT: "3002"
-      MONGODB_URL: "mongodb://listings-db:27017"
-      JWT_SECRET: "${JWT_SECRET:-change-this-secret-before-deploying}"
-    depends_on:
-      listings-db:
-        condition: service_healthy
+      DATA_FILE: /data/listings.sqlite
+      USER_SERVICE_URL: http://user-service:3001
+      LISTING_SERVICE_URL: http://listing-service:3002
+      SEED_DEMO: "${SEED_DEMO:-true}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+    volumes: ["listings-data:/data"]
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s
       timeout: 3s
       retries: 20
     restart: unless-stopped
-
-  listings-db:
-    image: mongo:7
-    volumes:
-      - listings-data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    restart: unless-stopped
-
   messaging-service:
-    build: ./messaging-service
+    build: {context: ., dockerfile: messaging-service/Dockerfile}
     environment:
       PORT: "3003"
-      DATABASE_URL: "postgres://marketday:marketday@messages-db:5432/messages"
-      JWT_SECRET: "${JWT_SECRET:-change-this-secret-before-deploying}"
-    depends_on:
-      messages-db:
-        condition: service_healthy
+      DATA_FILE: /data/messages.sqlite
+      USER_SERVICE_URL: http://user-service:3001
+      LISTING_SERVICE_URL: http://listing-service:3002
+      SEED_DEMO: "${SEED_DEMO:-true}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+    volumes: ["messages-data:/data"]
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3003/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    restart: unless-stopped
-
-  messages-db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: messages
-      POSTGRES_USER: marketday
-      POSTGRES_PASSWORD: marketday
-    volumes:
-      - messages-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U marketday -d messages"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s
       timeout: 3s
       retries: 20
