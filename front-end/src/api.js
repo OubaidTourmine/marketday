@@ -14,3 +14,9 @@ export async function api(path, options = {}) {
   }
   return data;
 }
+export const categories = ['Home', 'Electronics', 'Fashion', 'Outdoors', 'Books', 'Other'];
+export const conditions = ['New', 'Like new', 'Good', 'Fair'];
+export const money = cents => new Intl.NumberFormat('en-MA', { style: 'currency', currency: 'MAD', maximumFractionDigits: cents % 100 ? 2 : 0 }).format(cents / 100);
+export function date(value) {
+  return new Date(value.replace(' ', 'T') + (value.includes('Z') ? '' : 'Z')).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
